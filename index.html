@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>XML and JSON Data with Adapter Pattern</title>
+	<style>
+		.container {
+			margin: 20px;
+			padding: 20px;
+			border: 1px solid black;
+		}
+	</style>
+</head>
+<body>
+	<header>
+		<h1>XML and JSON Data with Adapter Pattern</h1>
+	</header>
+	<main>
+		<div class="container" id="xml-container"></div>
+		<div class="container" id="json-container"></div>
+	</main>
+	<footer>
+		<p>Mahmoud Awad --
+            Group : SE3
+        </p>
+	</footer>
+	<script>
+		const xmlContainer = document.getElementById("xml-container");
+const jsonContainer = document.getElementById("json-container");
+
+		// Define the adapter interface
+		class DataAdapter {
+			getData() {}
+		}
+
+		// Implement the XML adapter
+        class XmlAdapter extends DataAdapter {
+    async getData() {
+        try {
+          const response = await fetch('data.xml');
+          const xmlData = await response.text();
+          // Convert XML data to JSON
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlData, "text/xml");
+          let jsonData = JSON.stringify(xmlToJson(xmlDoc));
+          return jsonData;
+        } catch (error) {
+          console.log('Error fetching XML data:', error);
+        }
+    }
+}
+
+class JsonAdapter extends DataAdapter {
+    async getData() {
+        try {
+          const response = await fetch('data.json');
+          const jsonData = await response.json();
+          // Convert JSON data to XML
+          let xmlData = jsonToXml(jsonData);
+          return xmlData;
+        } catch (error) {
+          console.log('Error fetching JSON data:', error);
+        }
+    }
+}
+
+
+		// Define helper functions for data conversion
+		function xmlToJson(xml) {
+		  // Convert XML to JSON using recursion
+		  let obj = {};
+		  if (xml.nodeType === 1) {
+		    // element node
+		    if (xml.attributes.length > 0) {
+		      obj["@attributes"] = {};
+		      for (let j = 0; j < xml.attributes.length; j++) {
+		        const attribute = xml.attributes.item(j);
+		        obj["@attributes"][attribute.nodeName] = attribute.nodeValue;
+		      }
+		    }
+		  } else if (xml.nodeType === 3) {
+		    // text node
+		    obj = xml.nodeValue; // No more error
+		  }
+		  if (xml.hasChildNodes()) {
+		    for (let i = 0; i < xml.childNodes.length; i++) {
+		      const item = xml.childNodes.item(i);
+		      const nodeName = item.nodeName;
+		      if (typeof obj[nodeName] == "undefined") {
+		        obj[nodeName] = xmlToJson(item);
+		      } else {
+		        if (typeof obj[nodeName].push == "undefined") {
+		          const old = obj[nodeName];
+		          obj[nodeName] = [];
+		          obj[nodeName].push(old);
+		        }
+		        obj[nodeName].push(xmlToJson(item));
+		      }
+		    }
+		  }
+		  return obj;
+		}
+
+
+		function jsonToXml(json) {
+			// Convert JSON to XML using recursion
+			let xml = "";
+			for (const key in json) {
+				if (typeof json[key] === "object") {
+					xml += `<${key}>${jsonToXml(json[key])}</${key}>`;
+				} else {
+					xml += `<${key}>${json[key]}</${key}>`;
+				}
+			}
+			return xml;
+		}
+
+		// Create instances of the adapters
+		const xmlAdapter = new XmlAdapter();
+		const jsonAdapter = new JsonAdapter();
+
+// Get data from the adapters and display it in the containers
+Promise.all([xmlAdapter.getData(), jsonAdapter.getData()])
+  .then(([xmlData, jsonData]) => {
+    xmlContainer.innerHTML = `<h2>XML Data</h2><div>${xmlData}</div>`;
+    jsonContainer.innerHTML = `<h2>JSON Data</h2><div>${jsonData}</div>`;
+  })
+  .catch(error => {
+    console.log('Error:', error);
+  });
+	</script>
+</body>
+</html>
